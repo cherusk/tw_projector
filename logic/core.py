@@ -4,6 +4,7 @@ import json
 import collections as c
 import sys
 from collections import defaultdict
+from collections.abc import Mapping
 from taskw import TaskWarrior
 import logging
 
@@ -21,17 +22,41 @@ class TW():
         return tasks
 
 
+class ChunkingMap(Mapping):
+
+    def __init__(self, run_cnfg, slot_size):
+        self.auto_chunking = run_cnfg['meta']['auto_chunking']
+        self.slot_size = slot_size
+        self.tw_items = run_cnfg["items"]
+        self.task_idx = {task['id']: task for prj, task in self.tw_items}
+
+    def __getitem__(self, key):
+        task = key
+        _id = task['id']
+        _project = task['project']
+
+        if _project in self.tw_items.keys():
+            if _id in self.task_idx.keys():
+                return self.task_idx[_id]['meta']['chunk_size']
+            else:
+                return _project['meta']['chunk_size']
+
+        auto_chunk = self.slot_size * (self.auto_chunking["fraction"] / 100)
+        return auto_chunk
+
+    def __iter__(self):
+        raise NotImplementedError()
+
+    def __len__(self):
+        raise NotImplementedError()
+
+
 class Projector():
 
     folded_projects = defaultdict(int)
 
     def __init__(self, run_cnfg, engine_cnfg):
-        pass
-
-        # self._cnfg = cnfg['root']
-        # self.effort_uda = self._cnfg['uda_name']
-        # self.accrue_per_jproject(tasks)
-        # self.perform()
+        self.chunking = ChunkingMap(run_cnfg, engine_cnfg.slot_size)
 
 #     def accrue_per_project(self, tasks):
         # for task in tasks:
