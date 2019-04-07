@@ -56,13 +56,8 @@ class Projector():
     folded_projects = defaultdict(int)
 
     def __init__(self, run_cnfg, engine_cnfg):
-        self.chunking = ChunkingMap(run_cnfg, engine_cnfg.slot_size)
-
-#     def accrue_per_project(self, tasks):
-        # for task in tasks:
-            # project = task['project']
-            # self.folded_projects[project] = sum((self.folded_projects[project],
-                                                # task[self.effort_uda]))
+        self.chunking = ChunkingMap(run_cnfg,
+                                    engine_cnfg['projector']['atomic_slot'])
 
     def perform(self, tasks):
         scenario = {}
@@ -70,23 +65,10 @@ class Projector():
         #  CNFG
         # atomic_slot
 
-        # for t in tasks:
-            # duration = t["estimate"]
-            # chunks = duration / atomic_slot 
-
-
-        # capacity = self._cnfg['week_capacity']
-
-        # for project, chunking in self._cnfg['chunking_scenario']['projects'].items():
-            # capacity -= chunking
-
-            # if capacity >= 0:
-                # pass
-            # else:
-                # cease(rc=1, msg="exceeding capacity")
-
-            # effort = self.folded_projects[project]
-            # duration = (effort / chunking) + (effort % chunking)
-            # scenario[project] = duration
+        for t in tasks:
+            chunk = self.chunking[t]
+            duration = t["estimate"]
+            t['chunk'] = chunk
+            t['chunks'] = duration // chunk
 
         return scenario
