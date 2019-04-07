@@ -8,6 +8,14 @@ from collections.abc import Mapping
 from taskw import TaskWarrior
 import logging
 
+from platypus import (GeneticAlgorithm,
+                      Problem,
+                      Constraint,
+                      Binary,
+                      nondominated,
+                      unique,
+                      ProcessPoolEvaluator)
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,24 +59,64 @@ class ChunkingMap(Mapping):
         raise NotImplementedError()
 
 
+class LushHighPrio(Problem):
+    """ Perceivable as Knapsack spin """
+
+    def __init__(self, tasks, atomic_slot_size):
+        super(LushHighPrio, self).__init__(1, 1, 1)
+
+        self.tasks = tasks
+        self.items_count = len(tasks)
+
+        self.types[0] = Binary(self.items_count)
+        self.directions[0] = Problem.MAXIMIZE
+        self.constraints[0] = Constraint("<=", atomic_slot_size)
+        self.function = self.fitness
+
+    def _accumulate_selection(self, selection, field):
+        return sum([self.tasks[i][field]
+                   if selection[i] else 0
+                   for i in range(self.items_count)])
+
+    def fitness(self, instance):
+        selection = instance[0]
+
+        slot_allocation = self._accumulate_selection(selection, 'chunk')
+        priority_gain = self._accumulate_selection(selection, 'priority')
+
+        return priority_gain, slot_allocation
+
+    def determine(self, runs=10000):
+
+        with ProcessPoolEvaluator() as evaluator:
+            algorithm = GeneticAlgorithm(self, evaluator=evaluator)
+            algorithm.run(runs)
+
+        return unique(nondominated(algorithm.result))
+
+
 class Projector():
 
     folded_projects = defaultdict(int)
 
     def __init__(self, run_cnfg, engine_cnfg):
+        self.atomic_slot = engine_cnfg['projector']['atomic_slot']
+
         self.chunking = ChunkingMap(run_cnfg,
-                                    engine_cnfg['projector']['atomic_slot'])
+                                    self.atomic_slot)
+
+        if run_cnfg['meta']['strategy'] == "LushHighPrio":
+            self.slotter = LushHighPrio
 
     def perform(self, tasks):
         scenario = {}
-
-        #  CNFG
-        # atomic_slot
 
         for t in tasks:
             chunk = self.chunking[t]
             duration = t["estimate"]
             t['chunk'] = chunk
             t['chunks'] = duration // chunk
+
+        solutions = self.slotter(tasks, self.atomic_slot).determine()
 
         return scenario
