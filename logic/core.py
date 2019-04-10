@@ -4,10 +4,11 @@ import json
 import collections as c
 import sys
 from collections import defaultdict
-from collections.abc import Mapping
+from collections import Mapping
 from taskw import TaskWarrior
 import logging
 
+from concurrent.futures import ProcessPoolExecutor  # platypus parallelization
 from platypus import (GeneticAlgorithm,
                       Problem,
                       Constraint,
@@ -33,24 +34,31 @@ class TW():
 class ChunkingMap(Mapping):
 
     def __init__(self, run_cnfg, slot_size):
-        self.auto_chunking = run_cnfg['meta']['auto_chunking']
+        self.auto_chunking = run_cnfg['auto']
         self.slot_size = slot_size
-        self.tw_items = run_cnfg["items"]
-        self.task_idx = {task['id']: task for prj, task in self.tw_items}
+        self.tw_projects = run_cnfg['projects']
+        self.task_idx = {}
+        for prj in self.tw_projects.values():
+            for task in prj['tasks']:
+                _id = task['id']
+                self.task_idx[_id] = task
 
     def __getitem__(self, key):
         task = key
         _id = task['id']
         _project = task['project']
 
-        if _project in self.tw_items.keys():
+        if _project in self.tw_projects.keys():
             if _id in self.task_idx.keys():
-                return self.task_idx[_id]['meta']['chunk_size']
+                return self.task_idx[_id]['chunk_size']
             else:
-                return _project['meta']['chunk_size']
+                return self.tw_projects[_project]['chunk_size']
 
         auto_chunk = self.slot_size * (self.auto_chunking["fraction"] / 100)
-        return auto_chunk
+
+        return (auto_chunk
+                if auto_chunk > self.auto_chunking["minimum"]
+                else self.auto_chunking["minimum"])
 
     def __iter__(self):
         raise NotImplementedError()
@@ -88,9 +96,14 @@ class LushHighPrio(Problem):
 
     def determine(self, runs=10000):
 
-        with ProcessPoolEvaluator() as evaluator:
-            algorithm = GeneticAlgorithm(self, evaluator=evaluator)
-            algorithm.run(runs)
+        # Open clarification -
+        # caused PicklingError: Can't pickle <type 'instancemethod'>: attribute lookup
+        # with ProcessPoolEvaluator() as evaluator:
+            # algorithm = GeneticAlgorithm(self, evaluator=evaluator)
+            # algorithm.run(runs)
+
+        algorithm = GeneticAlgorithm(self)
+        algorithm.run(runs)
 
         return unique(nondominated(algorithm.result))
 
@@ -99,13 +112,12 @@ class Projector():
 
     folded_projects = defaultdict(int)
 
-    def __init__(self, run_cnfg, engine_cnfg):
-        self.atomic_slot = engine_cnfg['projector']['atomic_slot']
-
-        self.chunking = ChunkingMap(run_cnfg,
+    def __init__(self, run_cnfg):
+        self.atomic_slot = run_cnfg['run_meta']['atomic_slot']
+        self.chunking = ChunkingMap(run_cnfg['chunking'],
                                     self.atomic_slot)
 
-        if run_cnfg['meta']['strategy'] == "LushHighPrio":
+        if run_cnfg['run_meta']['strategy'] == "LushHighPrio":
             self.slotter = LushHighPrio
 
     def perform(self, tasks):

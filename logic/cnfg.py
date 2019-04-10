@@ -2,26 +2,22 @@
 import yaml
 from collections import defaultdict
 
+
 class CnfgMediator():
 
-    def __init__(self):
-        self.dflt = { "core" : {    "strategy" : "LushHighPrio",
-                                    "auto_chunking" :
-                                        {  "fraction": 10,  # in percentage of atomic slot
-                                           "minimum": 1 }},  # in hours
-                      "project" : { "chunk_size": 2 },  # in hours
-                      "task" :    { "chunk_size": 2 }}  # in hours
+    def __init__(self, dflt_file=None):
+        if dflt_file:
+            self.dflts = self._load(dflt_file,
+                                    logic=yaml.load)
 
     def _load(self, _file, logic=None):
         with open(_file, "r") as fp:
             return logic(fp)
 
-    def gather(self, param_file=None, engine_cnfg_file=None):
+    def gather(self, param_file=None):
         run_cnfg = self._load(param_file,
-                                        logic=yaml.load)
-        engine_cnfg = self._load(engine_cnfg_file,
-                                      logic=yaml.load)
-        return run_cnfg, engine_cnfg
+                              logic=yaml.load)
+        return run_cnfg
 
     def _save(self, _file, content):
         hr_dumper = yaml.SafeDumper
@@ -34,23 +30,32 @@ class CnfgMediator():
                       default_flow_style=False)
 
     def generate(self, tasks, deposit=None, granularity=None, projects=[]):
+        dflts = self.dflts['projector']
         generation = {
-                "meta": self.dflt['core'],
-                "items": defaultdict(lambda: dict(meta=self.dflt['project'],
-                                     tasks=list()))
-                }
+                "run_meta": dflts['engine'],
+                "chunking": {"auto": dflts['chunking']['auto'],
+                             "projects": defaultdict(lambda: dict(chunk_size=(dflts['chunking']
+                                                                                   ['projects']),
+                                                                  tasks=list()))}
+                     }
 
         for t in tasks:
             project = t['project']
-            if project not in projects:  # consider RE!
+
+            if (projects and
+               project not in projects):  # consider RE!
                 continue
-            generation["items"][project]['tasks'].append(dict(meta=self.dflt['task'],
-                                                              id=t['id'],
-                                                              description=t['description']))
+            (generation["chunking"]["projects"]
+                       [project]['tasks']).append(dict(id=t['id'],
+                                                  chunk_size=dflts['chunking']
+                                                                  ['tasks'],
+                                                  description=t['description']))
 
         # COSTLY! - though, no yaml human readable defaultdict support
         # yaml.representer.RepresenterError: cannot represent an object: defaultdict
         # Ignorable since of one shot nature as well.
-        generation["items"] = dict(generation["items"])
+        (generation["chunking"]
+                   ["projects"]) = dict(generation["chunking"]
+                                                  ["projects"])
 
         self._save(deposit, generation)

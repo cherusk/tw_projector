@@ -39,12 +39,17 @@ def setup_args():
                                   help="""selecting projects to focus on""",
                                   default=[])
 
+    local_dir = os.path.dirname(__file__)
+    dflts_file = os.path.join(local_dir, "./dflts_cnfg.yml")
+    generator_parser.add_argument('-d', '--dflts_cnfg',
+                                  help="""dflts config file to load""",
+                                  default=dflts_file)
+
     projection_parser = subparsers.add_parser('project')
     projection_parser.add_argument('-p', '--run_param_file',
                                    help="""projection parameterization cnfg
                                    file""")
-    projection_parser.add_argument('-c', '--logic_cnfg',
-                                   help="""logic config file to load""")
+
     args = parser.parse_args()
     return args
 
@@ -56,17 +61,18 @@ def run():
     tasks = TW.attain_data()
 
     if args.command == "project":
-        run_cnfg, engine_cnfg = CnfgMediator().gather(param_file=args.run_param_file,
-                                                      engine_cnfg=args.logic_cnfg)
-        scenario = Projector(run_cnfg, engine_cnfg).perform(tasks)
+        run_cnfg = (CnfgMediator().
+                    gather(param_file=args.run_param_file))
+        scenario = Projector(run_cnfg).perform(tasks)
         # Depictor().conjure(scenario)
     elif args.command == "generate":
         if args.project_elector:
             args.project_elector = args.project_elector.split(",")
-        CnfgMediator().generate(tasks,
-                                deposit=args.generated_run_cnfg,
-                                projects=args.project_elector,
-                                granularity=args.granularity)
+        (CnfgMediator(dflt_file=args.dflts_cnfg).
+         generate(tasks,
+                  deposit=args.generated_run_cnfg,
+                  projects=args.project_elector,
+                  granularity=args.granularity))
     else:
         raise RuntimeError("Unknown command %s" % args.command)
 
