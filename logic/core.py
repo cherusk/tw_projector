@@ -121,7 +121,9 @@ class Projector():
             self.slotter = LushHighPrio
 
     def perform(self, tasks):
-        scenario = {}
+        scenario = defaultdict(lambda: dict(tasks=[],
+                                            accumulative_priority=0))
+        scenarios = list()
 
         for t in tasks:
             chunk = self.chunking[t]
@@ -131,4 +133,12 @@ class Projector():
 
         solutions = self.slotter(tasks, self.atomic_slot).determine()
 
-        return scenario
+        for solution in solutions:
+            # idx: only one objective and items collection
+            scenario['accumulative_priority'] = solution.objectives[0]
+            scenario['tasks'] = [tasks[i]
+                                 for i in range(len(tasks))
+                                 if solution.variables[0][i]]
+            scenarios.append(scenario)
+
+        return scenarios

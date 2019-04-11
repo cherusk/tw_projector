@@ -44,6 +44,15 @@ class projectorTesting(unittest.TestCase):
         cnfg["chunking"]["projects"]["ProjC"]["tasks"][0]["chunk_size"] = 4
         cnfg["run_meta"]["atomic_slot"] = 10
 
-        scenario = Projector(cnfg).perform(self.tasks)
+        scenarios = Projector(cnfg).perform(self.tasks)
+        scenario = scenarios[0]
+        # print scenario
 
+        expected_outcome_set = set(["TaskAA", "TaskB", "TaskC", "TaskCC"])
+
+        self.assertEqual(len(scenario['tasks']), 4)
+        self.assertSetEqual(expected_outcome_set,
+                            set([task['description']
+                                 for task in scenario['tasks']]))
+        self.assertEqual(scenario['accumulative_priority'], 9)
         self.assertIsNotNone(scenario)
