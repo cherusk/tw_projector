@@ -7,6 +7,7 @@ from collections import defaultdict
 from collections import Mapping
 from taskw import TaskWarrior
 import logging
+import datetime
 
 from concurrent.futures import ProcessPoolExecutor  # platypus parallelization
 from platypus import (GeneticAlgorithm,
@@ -108,6 +109,42 @@ class LushHighPrio(Problem):
         return unique(nondominated(algorithm.result))
 
 
+class TimeRevisor():
+
+    def __init__(self, atomic_slot, deadline):
+        self.today = datetime.datetime.today()
+        self.atomic_unit = 'week'
+
+        if deadline['date'] != "YYYY-MM-DD":  # untouched cnfg
+            self.deadline = datetime(deadline['date'])
+        else:
+            self.deadline = (self.today +
+                             datetime.timedelta(days=deadline['stretch']))
+
+    def project_termination(self, task):
+        _weeks = task['chunks']
+        termination_point = (self.today +
+                             datetime.timedelta(weeks=_weeks))
+        return termination_point
+
+    def assess_trespass(self, termination):
+        by = self.deadline - termination
+        trespassing = True if by.total_seconds() < 0 else False
+        return (trespassing, by)
+
+    def inspect_trespassing(self, candidates):
+        trespassers = list()
+
+        for task in candidates:
+            end = self.project_termination(task)
+            trespassed, by = self.assess_trespass(end)
+            if trespassed:
+                task['exceeding_by'] = by  # for depiction?
+                trespassers.append(task)
+
+        return trespassers
+
+
 class Projector():
 
     folded_projects = defaultdict(int)
@@ -119,6 +156,9 @@ class Projector():
 
         if run_cnfg['run_meta']['strategy'] == "LushHighPrio":
             self.slotter = LushHighPrio
+
+        self.time_r = TimeRevisor(self.atomic_slot,
+                                  run_cnfg['run_meta']['deadline'])
 
     def perform(self, tasks):
         scenario = defaultdict(lambda: dict(tasks=[],
@@ -139,6 +179,8 @@ class Projector():
             scenario['tasks'] = [tasks[i]
                                  for i in range(len(tasks))
                                  if solution.variables[0][i]]
+            scenario['trespassers'] = (self.time_r.
+                                       inspect_trespassing(scenario['tasks']))
             scenarios.append(scenario)
 
         return scenarios

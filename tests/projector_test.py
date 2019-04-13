@@ -17,10 +17,10 @@ class projectorTesting(unittest.TestCase):
                          config_overrides=overrides)
 
         tw.task_add("TaskA",   project="ProjA", priority="1", estimate=100)
-        tw.task_add("TaskAA",  project="ProjA", priority="1", estimate=200)
-        tw.task_add("TaskB",   project="ProjB", priority="2", estimate=200)
-        tw.task_add("TaskC",   project="ProjC", priority="3", estimate=300)
-        tw.task_add("TaskCC",  project="ProjC", priority="3", estimate=300)
+        tw.task_add("TaskAA",  project="ProjA", priority="2", estimate=200)
+        tw.task_add("TaskB",   project="ProjB", priority="3", estimate=200)
+        tw.task_add("TaskC",   project="ProjC", priority="4", estimate=300)
+        tw.task_add("TaskCC",  project="ProjC", priority="4", estimate=300)
 
         self.tasks = tw.load_tasks()['pending']
         self.tw = tw
@@ -46,7 +46,6 @@ class projectorTesting(unittest.TestCase):
 
         scenarios = Projector(cnfg).perform(self.tasks)
         scenario = scenarios[0]
-        # print scenario
 
         expected_outcome_set = set(["TaskAA", "TaskB", "TaskC", "TaskCC"])
 
@@ -54,5 +53,5 @@ class projectorTesting(unittest.TestCase):
         self.assertSetEqual(expected_outcome_set,
                             set([task['description']
                                  for task in scenario['tasks']]))
-        self.assertEqual(scenario['accumulative_priority'], 9)
+        self.assertEqual(scenario['accumulative_priority'], 13)
         self.assertIsNotNone(scenario)
