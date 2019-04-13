@@ -137,6 +137,7 @@ class TimeRevisor():
 
         for task in candidates:
             end = self.project_termination(task)
+            task['termination'] = end
             trespassed, by = self.assess_trespass(end)
             if trespassed:
                 task['exceeding_by'] = by  # for depiction?
