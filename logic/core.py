@@ -116,7 +116,9 @@ class TimeRevisor():
         self.atomic_unit = 'week'
 
         if deadline['date'] != "YYYY-MM-DD":  # untouched cnfg
-            self.deadline = datetime(deadline['date'])
+            self.deadline = (datetime.datetime.
+                             strptime(deadline['date'],
+                                      '%Y-%m-%d'))
         else:
             self.deadline = (self.today +
                              datetime.timedelta(days=deadline['stretch']))
