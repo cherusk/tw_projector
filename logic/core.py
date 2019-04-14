@@ -174,7 +174,11 @@ class Projector():
             t['chunk'] = chunk
             t['chunks'] = duration // chunk
 
+        logger.debug('tasks staged for slotter')
+
         solutions = self.slotter(tasks, self.atomic_slot).determine()
+
+        logger.debug('solutions accrued --> \n {}'.format(str(solutions)))
 
         for solution in solutions:
             # idx: only one objective and items collection

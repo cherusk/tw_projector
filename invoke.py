@@ -2,12 +2,12 @@
 
 import sys
 import os
-from pprint import pprint
 
 sys.path.insert(1, os.path.dirname(__file__))
 
 import argparse
 import logging
+from logic.depiction import Depictor
 from logic.core import Projector
 from logic.core import TW
 from logic.cnfg import CnfgMediator
@@ -21,6 +21,9 @@ def setup_args():
                                      description="""Assisiting logic for bulk
                                      assessing timewise projections and overall
                                      approach scenario election.""")
+    parser.add_argument('--debug',
+                        help="""show logic trace""",
+                        action='store_true')
 
     subparsers = parser.add_subparsers(dest='command')
     generator_parser = subparsers.add_parser('generate')
@@ -55,16 +58,19 @@ def setup_args():
 
 
 def run():
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
     args = setup_args()
-    tasks = TW.attain_data()
 
+    if args.debug:
+        logging.basicConfig(stream=sys.stdout,
+                            level=logging.DEBUG)
+
+    tasks = TW.attain_data("~/.taskrc")
     if args.command == "project":
         run_cnfg = (CnfgMediator().
                     gather(param_file=args.run_param_file))
-        scenario = Projector(run_cnfg).perform(tasks)
-        # Depictor().conjure(scenario)
+        scenarios = Projector(run_cnfg).perform(tasks)
+        Depictor(run_cnfg).conjure(scenarios)
     elif args.command == "generate":
         if args.project_elector:
             args.project_elector = args.project_elector.split(",")
