@@ -8,4 +8,6 @@ class Depictor:
         pass
 
     def conjure(self, scenarios):
-        print json.dump(scenarios, indent=4)
+        print json.dumps(scenarios,
+                         indent=4,
+                         default=str)

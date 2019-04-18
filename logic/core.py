@@ -26,10 +26,15 @@ class TW():
     @staticmethod
     def attain_data(cnfg_file=None):
         tw = TaskWarrior(config_filename=cnfg_file)
+        _tasks = list()
         tasks = tw.load_tasks()['pending']
         for t in tasks:
             logger.debug("Task>> %s:", str(t))
-        return tasks
+            if "estimate" not in t.keys():
+                    # e.g. recurring meta tasks etc.
+                    continue
+            _tasks.append(t)
+        return _tasks
 
 
 class ChunkingMap(Mapping):
