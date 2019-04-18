@@ -1,0 +1,15 @@
+---
+
+projector: 
+    engine:
+        strategy: "LushHighPrio"
+        atomic_slot: 100        # in hours 
+        deadline:
+            stretch:  100       # days
+            date: "YYYY-MM-DD"
+    chunking: 
+        auto:
+            fraction: 10    # in percentage of atomic slot
+            minimum:   1    # in hours
+        projects:      2    # in hours
+        tasks:         2    # in hours
