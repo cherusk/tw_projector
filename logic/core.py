@@ -109,7 +109,9 @@ class LushHighPrio(Problem):
             # algorithm.run(runs)
 
         algorithm = GeneticAlgorithm(self)
+        logger.debug('trigger GEA optimization run')
         algorithm.run(runs)
+        logger.debug('GEA done')
 
         return unique(nondominated(algorithm.result))
 
@@ -168,17 +170,19 @@ class Projector():
         self.time_r = TimeRevisor(self.atomic_slot,
                                   run_cnfg['run_meta']['deadline'])
 
-    def perform(self, tasks):
-        scenario = defaultdict(lambda: dict(tasks=[],
-                                            accumulative_priority=0))
-        scenarios = list()
-
+    def _do_chunking(self, tasks):
         for t in tasks:
             chunk = self.chunking[t]
             duration = t["estimate"]
             t['chunk'] = chunk
             t['chunks'] = duration // chunk
 
+    def perform(self, tasks):
+        scenario = defaultdict(lambda: dict(tasks=[],
+                                            accumulative_priority=0))
+        scenarios = list()
+
+        tasks = self._do_chunking(tasks)
         logger.debug('tasks staged for slotter')
 
         solutions = self.slotter(tasks, self.atomic_slot).determine()
